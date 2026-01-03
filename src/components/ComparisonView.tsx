@@ -238,6 +238,44 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                                         );
                                     })}
                                 </tr>
+                                {/* Riesgo y Sensibilidad */}
+                                <tr className="bg-slate-800/20">
+                                    <td className="px-6 py-3 font-semibold text-slate-400" colSpan={results.length + 1}>
+                                        Riesgo (Griegas) y Sensibilidad
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-3 font-medium">Delta (Δ)</td>
+                                    {results.map(item => (
+                                        <td key={item.id} className="px-6 py-3 font-mono text-slate-300">
+                                            {item.result.greeks.delta.toFixed(4)}
+                                        </td>
+                                    ))}
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-3 font-medium">Gamma (Γ)</td>
+                                    {results.map(item => (
+                                        <td key={item.id} className="px-6 py-3 font-mono text-slate-300">
+                                            {item.result.greeks.gamma.toFixed(4)}
+                                        </td>
+                                    ))}
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-3 font-medium">Vega (ν)</td>
+                                    {results.map(item => (
+                                        <td key={item.id} className="px-6 py-3 font-mono text-slate-300">
+                                            {item.result.greeks.vega.toFixed(4)} <span className="text-xs text-slate-500">(por 1% vol)</span>
+                                        </td>
+                                    ))}
+                                </tr>
+                                <tr>
+                                    <td className="px-6 py-3 font-medium">Rho (ρ)</td>
+                                    {results.map(item => (
+                                        <td key={item.id} className="px-6 py-3 font-mono text-slate-300">
+                                            {item.result.greeks.rho.toFixed(4)} <span className="text-xs text-slate-500">(por 1% tipo)</span>
+                                        </td>
+                                    ))}
+                                </tr>
                             </tbody>
                         </table>
                     </div>

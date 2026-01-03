@@ -90,6 +90,14 @@ export interface CostsResult {
     netInvestment: number;
 }
 
+export interface Greeks {
+    delta: number;
+    gamma: number;
+    vega: number;
+    theta: number;
+    rho: number;
+}
+
 /**
  * Salida completa del simulador (para export JSON)
  */
@@ -98,6 +106,7 @@ export interface SimulatorOutput {
     calculations: Calculations;
     costs: CostsResult;
     theta: number;
+    greeks: Greeks;
     breakEvenRate: number | null;
     adjustedPnL: {
         totalInvestment: number;

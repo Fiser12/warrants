@@ -1,4 +1,4 @@
-import { calcBondPrice, calcWarrantValue, calcDuration } from './financial';
+import { calcBondPrice, calcWarrantValue, calcDuration, calcGreeks } from './financial';
 import type { SimulatorInput, SimulatorOutput, Calculations, CostsResult } from './types';
 
 /**
@@ -112,11 +112,22 @@ export function runSimulation(input: SimulatorInput): SimulatorOutput {
         profitLossPercent: ((simulatedPosition - netInvestment) / netInvestment) * 100,
     };
 
+    // Griegas
+    const greeks = calcGreeks(
+        currentBondPrice,
+        warrant.strike,
+        warrant.volatility,
+        remainingYears,
+        market.riskFreeRate / 100,
+        isPut
+    );
+
     return {
         input,
         calculations,
         costs: costsResult,
-        theta,
+        theta, // Legacy
+        greeks,
         breakEvenRate,
         adjustedPnL,
         remainingDays,

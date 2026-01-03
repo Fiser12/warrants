@@ -89,6 +89,74 @@ export const calcWarrantValue = (
 };
 
 /**
+ * Función de densidad de probabilidad normal (PDF)
+ */
+export const normPDF = (x: number): number => {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+};
+
+/**
+ * Calcula todas las griegas de una opción usando Black-Scholes
+ */
+export const calcGreeks = (
+    bondPrice: number,
+    strike: number,
+    volatility: number,
+    timeToExpiry: number,
+    riskFreeRate: number,
+    isPut: boolean
+) => {
+    if (timeToExpiry <= 0) {
+        return { delta: 0, gamma: 0, vega: 0, theta: 0, rho: 0 };
+    }
+
+    const d1 = (
+        Math.log(bondPrice / strike) +
+        (riskFreeRate + 0.5 * volatility * volatility) * timeToExpiry
+    ) / (volatility * Math.sqrt(timeToExpiry));
+
+    const d2 = d1 - volatility * Math.sqrt(timeToExpiry);
+
+    const nd1 = normCDF(d1);
+    const nd2 = normCDF(d2);
+    const nPdfD1 = normPDF(d1);
+
+    // DELTA
+    const delta = isPut ? nd1 - 1 : nd1;
+
+    // GAMMA (igual para Put y Call)
+    const gamma = nPdfD1 / (bondPrice * volatility * Math.sqrt(timeToExpiry));
+
+    // VEGA (igual para Put y Call)
+    // Se suele expresar por cambio de 1% en volatilidad (/100)
+    const vega = (bondPrice * Math.sqrt(timeToExpiry) * nPdfD1) / 100;
+
+    // THETA
+    // Se suele expresar por día (/365)
+    let theta = 0;
+    const term1 = -(bondPrice * nPdfD1 * volatility) / (2 * Math.sqrt(timeToExpiry));
+
+    if (isPut) {
+        theta = term1 + riskFreeRate * strike * Math.exp(-riskFreeRate * timeToExpiry) * normCDF(-d2);
+    } else {
+        theta = term1 - riskFreeRate * strike * Math.exp(-riskFreeRate * timeToExpiry) * nd2;
+    }
+    theta = theta / 365;
+
+    // RHO
+    // Se suele expresar por cambio de 1% en tipo libre de riesgo (/100)
+    let rho = 0;
+    if (isPut) {
+        rho = -strike * timeToExpiry * Math.exp(-riskFreeRate * timeToExpiry) * normCDF(-d2);
+    } else {
+        rho = strike * timeToExpiry * Math.exp(-riskFreeRate * timeToExpiry) * nd2;
+    }
+    rho = rho / 100;
+
+    return { delta, gamma, vega, theta, rho };
+};
+
+/**
  * Calcula la duración aproximada de un bono
  */
 export const calcDuration = (maturity: number): number => {
