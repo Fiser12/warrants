@@ -17,13 +17,13 @@ export const WarrantTypeSelector = ({ value, onChange }: WarrantTypeSelectorProp
                     className={`${baseBtn} rounded-t-md sm:rounded-l-md sm:rounded-tr-none ${value === 'PUT' ? activeBtn : ''}`}
                     onClick={() => onChange('PUT')}
                 >
-                    🔻 PUT (Ganar si suben tipos)
+                    🔻 PUT
                 </button>
                 <button
                     className={`${baseBtn} rounded-b-md sm:rounded-r-md sm:rounded-bl-none ${value === 'CALL' ? activeBtn : ''}`}
                     onClick={() => onChange('CALL')}
                 >
-                    🔺 CALL (Ganar si bajan tipos)
+                    🔺 CALL
                 </button>
             </div>
             <p className="mt-3 text-[11px] sm:text-xs text-slate-500">

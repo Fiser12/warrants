@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart, ReferenceLine, Legend,
 } from 'recharts';
 import { formatCurrency } from '../lib/formatters';
 import type { SavedOperation } from '../lib/types';
 import { runSimulation } from '../lib/simulator';
+// import { calcGreeks } from '../lib/financial'; // Not needed if runSimulation returns greeks
 
 // Generate distinct colors for lines
 const COLORS = [
@@ -17,14 +18,17 @@ const COLORS = [
     '#06b6d4', // cyan
 ];
 
+type ChartType = 'roi' | 'pnl' | 'delta';
+
 interface ComparisonViewProps {
     operations: SavedOperation[];
     onClose: () => void;
 }
 
 export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => {
+    const [chartType, setChartType] = useState<ChartType>('roi');
 
-    // Calcular resultados para cada operación
+    // Calcular resultados para cada operación (para la tabla)
     const results = useMemo(() => {
         return operations.map(op => {
             const result = runSimulation(op.input);
@@ -44,19 +48,45 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
             const point: any = { rate };
 
             operations.forEach(op => {
-                // Clonar input y simular con este tipo
+                // Clonar input para evitar mutaciones
                 const input = JSON.parse(JSON.stringify(op.input));
                 input.market.simulatedRate = rate;
+
+                // Calcular simulación para este punto
                 const res = runSimulation(input);
 
-                point[op.id] = res.adjustedPnL.profitLossPercent; // Usar % para comparar peras con peras
+                if (chartType === 'delta') {
+                    // Usar Delta calculada por el simulador
+                    point[op.id] = res.greeks.delta;
+                } else if (chartType === 'pnl') {
+                    point[op.id] = res.adjustedPnL.profitLoss;
+                } else {
+                    // roi (default)
+                    point[op.id] = res.adjustedPnL.profitLossPercent;
+                }
             });
 
             data.push(point);
         }
 
         return data;
-    }, [operations]);
+    }, [operations, chartType]);
+
+    const getChartTitle = () => {
+        switch (chartType) {
+            case 'roi': return 'Rentabilidad (%) vs Tipo de Interés';
+            case 'pnl': return 'Beneficio/Pérdida (€) vs Tipo de Interés';
+            case 'delta': return 'Sensibilidad (Delta) vs Tipo de Interés';
+        }
+    };
+
+    const formatYAxis = (val: number) => {
+        switch (chartType) {
+            case 'roi': return `${val.toFixed(0)}%`;
+            case 'pnl': return `${(val / 1000).toFixed(0)}k€`; // Simplificado para ejes
+            case 'delta': return val.toFixed(2);
+        }
+    };
 
     return (
         <div className="flex-1 w-full h-full flex flex-col p-6 overflow-hidden">
@@ -81,9 +111,28 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                 {/* Gráfico Comparativo */}
                 <div className="bg-slate-900/50 rounded-xl p-5 border border-slate-700/50 shadow-xl">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-slate-300">Curvas de Rendimiento (%)</h3>
-                        <div className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">
-                            Eje X: Tipo de Interés Simulado
+                        <h3 className="text-lg font-semibold text-slate-300">{getChartTitle()}</h3>
+
+                        {/* Chart Selector */}
+                        <div className="flex bg-slate-800 rounded-lg p-1">
+                            <button
+                                onClick={() => setChartType('roi')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'roi' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Rentabilidad %
+                            </button>
+                            <button
+                                onClick={() => setChartType('pnl')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pnl' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                P&L (€)
+                            </button>
+                            <button
+                                onClick={() => setChartType('delta')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'delta' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Delta (Δ)
+                            </button>
                         </div>
                     </div>
 
@@ -108,16 +157,20 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                                 />
                                 <YAxis
                                     stroke="#64748b"
-                                    tickFormatter={(v) => `${v}%`}
+                                    tickFormatter={formatYAxis}
                                     tick={{ fontSize: 12 }}
                                 />
                                 <Tooltip
                                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }}
                                     itemStyle={{ fontSize: '13px', paddingTop: '2px', paddingBottom: '2px' }}
                                     formatter={(value: number, name: string, props: any) => {
-                                        // Buscar el nombre de la operación original si viene por ID
                                         const opName = operations.find(op => op.id === props.dataKey)?.name || name;
-                                        return [`${value.toFixed(1)}%`, opName];
+                                        let formattedValue = '';
+                                        if (chartType === 'roi') formattedValue = `${value.toFixed(1)}%`;
+                                        else if (chartType === 'pnl') formattedValue = formatCurrency(value);
+                                        else formattedValue = value.toFixed(4);
+
+                                        return [formattedValue, opName];
                                     }}
                                     labelFormatter={(value) => `Tipo Simulado: ${value}%`}
                                 />
@@ -147,7 +200,7 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                     </div>
                 </div>
 
-                {/* Tabla Comparativa */}
+                {/* Tabla Comparativa (Sin cambios) */}
                 <div className="bg-slate-900/50 rounded-xl overflow-hidden border border-slate-700/50 shadow-lg">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-slate-300">
