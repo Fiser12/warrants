@@ -19,6 +19,7 @@ const COLORS = [
 ];
 
 type ChartType = 'roi' | 'pnl' | 'delta';
+type AxisType = 'rate' | 'time' | 'vol';
 
 interface ComparisonViewProps {
     operations: SavedOperation[];
@@ -27,6 +28,7 @@ interface ComparisonViewProps {
 
 export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => {
     const [chartType, setChartType] = useState<ChartType>('roi');
+    const [xAxisType, setXAxisType] = useState<AxisType>('rate');
 
     // Calcular resultados para cada operación (para la tabla)
     const results = useMemo(() => {
@@ -43,40 +45,67 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
     const chartData = useMemo(() => {
         const data: any[] = [];
 
-        // Crear rango de tipos de interés (de 1% a 7% con paso 0.25%)
-        for (let rate = 1; rate <= 7; rate += 0.25) {
-            const point: any = { rate };
-
-            operations.forEach(op => {
-                // Clonar input para evitar mutaciones
-                const input = JSON.parse(JSON.stringify(op.input));
-                input.market.simulatedRate = rate;
-
-                // Calcular simulación para este punto
-                const res = runSimulation(input);
-
-                if (chartType === 'delta') {
-                    // Usar Delta calculada por el simulador
-                    point[op.id] = res.greeks.delta;
-                } else if (chartType === 'pnl') {
-                    point[op.id] = res.adjustedPnL.profitLoss;
-                } else {
-                    // roi (default)
-                    point[op.id] = res.adjustedPnL.profitLossPercent;
-                }
-            });
-
-            data.push(point);
+        if (xAxisType === 'rate') {
+            // Rango de tipos: 1% a 7%
+            for (let rate = 1; rate <= 7; rate += 0.25) {
+                const point: any = { xPoints: rate, label: `${rate}%` };
+                operations.forEach(op => {
+                    const input = JSON.parse(JSON.stringify(op.input));
+                    input.market.simulatedRate = rate;
+                    const res = runSimulation(input);
+                    point[op.id] = chartType === 'roi' ? res.adjustedPnL.profitLossPercent :
+                        chartType === 'pnl' ? res.adjustedPnL.profitLoss :
+                            res.greeks.delta;
+                });
+                data.push(point);
+            }
+        } else if (xAxisType === 'time') {
+            // Rango de tiempo: Hoy (0) a 365 días (o menos si vence antes)
+            // Simulamos paso de días manteniendo el tipo constante
+            for (let days = 0; days <= 365; days += 15) {
+                const point: any = { xPoints: days, label: `+${days}d` };
+                operations.forEach(op => {
+                    const input = JSON.parse(JSON.stringify(op.input));
+                    // Sumar días simulados a los ya transcurridos
+                    input.time.elapsedDays += days;
+                    const res = runSimulation(input);
+                    // Si ha vencido, el valor podría ser constante (0 o intrínseco)
+                    point[op.id] = chartType === 'roi' ? res.adjustedPnL.profitLossPercent :
+                        chartType === 'pnl' ? res.adjustedPnL.profitLoss :
+                            res.greeks.delta;
+                });
+                data.push(point);
+            }
+        } else if (xAxisType === 'vol') {
+            // Rango de volatilidad: 10% a 100%
+            for (let vol = 10; vol <= 100; vol += 5) {
+                const point: any = { xPoints: vol, label: `${vol}%` };
+                operations.forEach(op => {
+                    const input = JSON.parse(JSON.stringify(op.input));
+                    input.warrant.volatility = vol;
+                    const res = runSimulation(input);
+                    point[op.id] = chartType === 'roi' ? res.adjustedPnL.profitLossPercent :
+                        chartType === 'pnl' ? res.adjustedPnL.profitLoss :
+                            res.greeks.delta;
+                });
+                data.push(point);
+            }
         }
 
         return data;
-    }, [operations, chartType]);
+    }, [operations, chartType, xAxisType]);
 
     const getChartTitle = () => {
-        switch (chartType) {
-            case 'roi': return 'Rentabilidad (%) vs Tipo de Interés';
-            case 'pnl': return 'Beneficio/Pérdida (€) vs Tipo de Interés';
-            case 'delta': return 'Sensibilidad (Delta) vs Tipo de Interés';
+        const metric = chartType === 'roi' ? 'Rentabilidad (%)' : chartType === 'pnl' ? 'P&L (€)' : 'Delta';
+        const axis = xAxisType === 'rate' ? 'Tipo de Interés' : xAxisType === 'time' ? 'Tiempo Transcurrido' : 'Volatilidad';
+        return `${metric} vs ${axis}`;
+    };
+
+    const getXAxisLabel = () => {
+        switch (xAxisType) {
+            case 'rate': return 'Tipo de Interés Simulado';
+            case 'time': return 'Días Transcurridos (Time Decay)';
+            case 'vol': return 'Volatilidad Implícita';
         }
     };
 
@@ -110,29 +139,37 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
 
                 {/* Gráfico Comparativo */}
                 <div className="bg-slate-900/50 rounded-xl p-5 border border-slate-700/50 shadow-xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-slate-300">{getChartTitle()}</h3>
+                    <div className="flex flex-col gap-4 mb-6">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-slate-300">{getChartTitle()}</h3>
+                            <div className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded">
+                                Eje X: {getXAxisLabel()}
+                            </div>
+                        </div>
 
-                        {/* Chart Selector */}
-                        <div className="flex bg-slate-800 rounded-lg p-1">
-                            <button
-                                onClick={() => setChartType('roi')}
-                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'roi' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                            >
-                                Rentabilidad %
-                            </button>
-                            <button
-                                onClick={() => setChartType('pnl')}
-                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'pnl' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                            >
-                                P&L (€)
-                            </button>
-                            <button
-                                onClick={() => setChartType('delta')}
-                                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${chartType === 'delta' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                            >
-                                Delta (Δ)
-                            </button>
+                        {/* Controls Toolbar */}
+                        <div className="flex flex-wrap gap-4 p-3 bg-slate-800/30 rounded-lg border border-slate-700/30">
+                            {/* Y-Axis Selector */}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold ml-1">Métrica (Eje Y)</span>
+                                <div className="flex bg-slate-900/80 rounded-lg p-1">
+                                    <button onClick={() => setChartType('roi')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${chartType === 'roi' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>Rentabilidad %</button>
+                                    <button onClick={() => setChartType('pnl')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${chartType === 'pnl' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>P&L (€)</button>
+                                    <button onClick={() => setChartType('delta')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${chartType === 'delta' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>Delta (Δ)</button>
+                                </div>
+                            </div>
+
+                            <div className="w-px bg-slate-700/50 mx-2" />
+
+                            {/* X-Axis Selector */}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold ml-1">Dimensión (Eje X)</span>
+                                <div className="flex bg-slate-900/80 rounded-lg p-1">
+                                    <button onClick={() => setXAxisType('rate')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${xAxisType === 'rate' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>Tipo Interés</button>
+                                    <button onClick={() => setXAxisType('time')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${xAxisType === 'time' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>Tiempo (+Días)</button>
+                                    <button onClick={() => setXAxisType('vol')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${xAxisType === 'vol' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>Volatilidad</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -149,11 +186,11 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(100, 116, 139, 0.1)" vertical={false} />
                                 <XAxis
-                                    dataKey="rate"
+                                    dataKey="label" // Use common label field
                                     stroke="#64748b"
-                                    tickFormatter={(v) => `${v}%`}
                                     tick={{ fontSize: 12 }}
                                     dy={10}
+                                    interval={xAxisType === 'time' ? 4 : 2} // Skip ticks for dense time data
                                 />
                                 <YAxis
                                     stroke="#64748b"
@@ -169,10 +206,9 @@ export const ComparisonView = ({ operations, onClose }: ComparisonViewProps) => 
                                         if (chartType === 'roi') formattedValue = `${value.toFixed(1)}%`;
                                         else if (chartType === 'pnl') formattedValue = formatCurrency(value);
                                         else formattedValue = value.toFixed(4);
-
                                         return [formattedValue, opName];
                                     }}
-                                    labelFormatter={(value) => `Tipo Simulado: ${value}%`}
+                                    labelFormatter={(label) => `${getXAxisLabel()}: ${label}`}
                                 />
                                 <Legend
                                     verticalAlign="top"
