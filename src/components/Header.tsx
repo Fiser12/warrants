@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { WarrantType, SimulatorInput, SimulatorOutput } from '../lib/types';
+import { useSettings } from '../context/SettingsContext';
 
 interface HeaderProps {
     warrantType: WarrantType;
@@ -10,6 +11,14 @@ interface HeaderProps {
 
 export const Header = ({ warrantType, currentInput, currentOutput, onImport }: HeaderProps) => {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const { apiKey, setApiKey } = useSettings();
+    const [tempKey, setTempKey] = useState(apiKey);
+
+    const handleSaveSettings = () => {
+        setApiKey(tempKey);
+        setSettingsOpen(false);
+    };
 
     const handleExportInput = () => {
         if (!currentInput) return;
@@ -59,6 +68,42 @@ export const Header = ({ warrantType, currentInput, currentOutput, onImport }: H
 
     return (
         <header className="relative mb-6 sm:mb-8 pb-4 sm:pb-5 border-b border-blue-500/20">
+            {/* Settings Modal */}
+            {settingsOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-100 mb-4">Configuración API</h3>
+                        <p className="text-slate-400 text-sm mb-4">
+                            Introduce tu API Key de <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">Alpha Vantage</a> para habilitar la sincronización de datos en tiempo real.
+                        </p>
+                        <div className="mb-6">
+                            <label className="block text-xs uppercase text-slate-500 font-bold mb-2">Alpha Vantage API Key</label>
+                            <input
+                                type="text"
+                                value={tempKey}
+                                onChange={(e) => setTempKey(e.target.value)}
+                                placeholder="Ej: DEMO1234..."
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 outline-none focus:border-blue-500 transition-colors"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setSettingsOpen(false)}
+                                className="px-4 py-2 text-slate-400 hover:text-slate-200 text-sm font-medium transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSaveSettings}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-3 sm:gap-4 mb-2">
@@ -73,55 +118,69 @@ export const Header = ({ warrantType, currentInput, currentOutput, onImport }: H
                     </p>
                 </div>
 
-                {/* Menu button */}
-                {currentInput && (
-                    <div className="relative">
-                        <button
-                            onClick={() => setMenuOpen(!menuOpen)}
-                            className="px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 rounded-lg text-slate-300 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
-                        >
-                            <span>💾</span>
-                            <span className="hidden sm:inline">Archivo</span>
-                            <span className="text-[10px]">▼</span>
-                        </button>
+                <div className="flex items-center gap-3">
+                    {/* Settings Button */}
+                    <button
+                        onClick={() => {
+                            setTempKey(apiKey);
+                            setSettingsOpen(true);
+                        }}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        title="Configuración API"
+                    >
+                        ⚙️
+                    </button>
 
-                        {menuOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-40"
-                                    onClick={() => setMenuOpen(false)}
-                                />
-                                <div className="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-600/50 rounded-lg shadow-xl z-50 overflow-hidden">
-                                    <button
-                                        onClick={handleImport}
-                                        className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        📥 Importar JSON
-                                    </button>
-                                    <button
-                                        onClick={handleExportInput}
-                                        className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        📤 Exportar Input
-                                    </button>
-                                    <button
-                                        onClick={handleExportOutput}
-                                        className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        📊 Exportar Resultados
-                                    </button>
-                                    <div className="border-t border-slate-600/50" />
-                                    <button
-                                        onClick={handleCopyToClipboard}
-                                        className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                                    >
-                                        📋 Copiar al portapapeles
-                                    </button>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
+                    {/* Menu button */}
+                    {currentInput && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setMenuOpen(!menuOpen)}
+                                className="px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600/50 rounded-lg text-slate-300 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
+                            >
+                                <span>💾</span>
+                                <span className="hidden sm:inline">Archivo</span>
+                                <span className="text-[10px]">▼</span>
+                            </button>
+
+                            {menuOpen && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setMenuOpen(false)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-slate-800 border border-slate-600/50 rounded-lg shadow-xl z-50 overflow-hidden">
+                                        <button
+                                            onClick={handleImport}
+                                            className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        >
+                                            📥 Importar JSON
+                                        </button>
+                                        <button
+                                            onClick={handleExportInput}
+                                            className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        >
+                                            📤 Exportar Input
+                                        </button>
+                                        <button
+                                            onClick={handleExportOutput}
+                                            className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        >
+                                            📊 Exportar Resultados
+                                        </button>
+                                        <div className="border-t border-slate-600/50" />
+                                        <button
+                                            onClick={handleCopyToClipboard}
+                                            className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
+                                        >
+                                            📋 Copiar al portapapeles
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         </header>
     );
