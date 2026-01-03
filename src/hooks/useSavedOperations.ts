@@ -15,21 +15,19 @@ function generateName(input: SimulatorInput): string {
 }
 
 export function useSavedOperations() {
-    const [operations, setOperations] = useState<SavedOperation[]>([]);
-
-    // Load from localStorage on mount
-    useEffect(() => {
+    // Initialize with data from localStorage to avoid race conditions/overwrites
+    const [operations, setOperations] = useState<SavedOperation[]>(() => {
         try {
+            if (typeof window === 'undefined') return [];
             const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                setOperations(JSON.parse(stored));
-            }
+            return stored ? JSON.parse(stored) : [];
         } catch (e) {
             console.error('Error loading operations:', e);
+            return [];
         }
-    }, []);
+    });
 
-    // Save to localStorage on change
+    // Save to localStorage whenever operations change
     useEffect(() => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(operations));
