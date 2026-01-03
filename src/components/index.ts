@@ -8,3 +8,4 @@ export { BondMetrics } from './BondMetrics';
 export { PnLResult } from './PnLResult';
 export { PayoffChart } from './PayoffChart';
 export { BrokersFooter } from './BrokersFooter';
+export { MarketParamsCard } from './MarketParamsCard';

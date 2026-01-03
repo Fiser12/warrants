@@ -12,18 +12,12 @@ interface UsePayoffDataParams {
     quantity: number;
     bondCoupon: number;
     bondMaturity: number;
+    faceValue: number;
 }
 
 export const usePayoffData = ({
-    warrantType,
-    strike,
-    premium,
-    ratio,
-    expiry,
-    volatility,
-    quantity,
-    bondCoupon,
-    bondMaturity,
+    warrantType, strike, premium, ratio, expiry, volatility, quantity,
+    bondCoupon, bondMaturity, faceValue,
 }: UsePayoffDataParams): PayoffDataPoint[] => {
     return useMemo(() => {
         const data: PayoffDataPoint[] = [];
@@ -31,22 +25,8 @@ export const usePayoffData = ({
         const investment = premium * quantity * ratio;
 
         for (let rate = 1; rate <= 7; rate += 0.25) {
-            const bondPrice = calcBondPrice(
-                100,
-                bondCoupon / 100,
-                rate / 100,
-                bondMaturity
-            );
-
-            const warrantValue = calcWarrantValue(
-                bondPrice,
-                strike,
-                volatility,
-                expiry * 0.5,
-                rate / 100,
-                isPut
-            );
-
+            const bondPrice = calcBondPrice(faceValue, bondCoupon / 100, rate / 100, bondMaturity);
+            const warrantValue = calcWarrantValue(bondPrice, strike, volatility, expiry * 0.5, rate / 100, isPut);
             const position = warrantValue * quantity * ratio;
             const pnl = position - investment;
 
@@ -59,15 +39,5 @@ export const usePayoffData = ({
         }
 
         return data;
-    }, [
-        warrantType,
-        strike,
-        premium,
-        ratio,
-        expiry,
-        volatility,
-        quantity,
-        bondCoupon,
-        bondMaturity,
-    ]);
+    }, [warrantType, strike, premium, ratio, expiry, volatility, quantity, bondCoupon, bondMaturity, faceValue]);
 };

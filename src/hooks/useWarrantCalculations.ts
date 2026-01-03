@@ -14,55 +14,27 @@ interface UseWarrantCalculationsParams {
     bondCoupon: number;
     bondMaturity: number;
     simulatedRate: number;
+    riskFreeRate: number;
+    faceValue: number;
 }
 
 export const useWarrantCalculations = ({
-    warrantType,
-    strike,
-    premium,
-    ratio,
-    expiry,
-    volatility,
-    quantity,
-    currentRate,
-    bondCoupon,
-    bondMaturity,
-    simulatedRate,
+    warrantType, strike, premium, ratio, expiry, volatility, quantity,
+    currentRate, bondCoupon, bondMaturity, simulatedRate, riskFreeRate, faceValue,
 }: UseWarrantCalculationsParams): Calculations => {
     return useMemo(() => {
-        const faceValue = 100;
         const isPut = warrantType === 'PUT';
 
         // Precios del bono
-        const currentBondPrice = calcBondPrice(
-            faceValue,
-            bondCoupon / 100,
-            currentRate / 100,
-            bondMaturity
-        );
-        const simulatedBondPrice = calcBondPrice(
-            faceValue,
-            bondCoupon / 100,
-            simulatedRate / 100,
-            bondMaturity
-        );
+        const currentBondPrice = calcBondPrice(faceValue, bondCoupon / 100, currentRate / 100, bondMaturity);
+        const simulatedBondPrice = calcBondPrice(faceValue, bondCoupon / 100, simulatedRate / 100, bondMaturity);
 
-        // Valores del warrant
+        // Valores del warrant (usando tasa libre de riesgo para descuento)
         const currentWarrantValue = calcWarrantValue(
-            currentBondPrice,
-            strike,
-            volatility,
-            expiry,
-            currentRate / 100,
-            isPut
+            currentBondPrice, strike, volatility, expiry, riskFreeRate / 100, isPut
         );
         const simulatedWarrantValue = calcWarrantValue(
-            simulatedBondPrice,
-            strike,
-            volatility,
-            expiry * 0.8, // Decay del tiempo
-            simulatedRate / 100,
-            isPut
+            simulatedBondPrice, strike, volatility, expiry * 0.8, riskFreeRate / 100, isPut
         );
 
         // Valor intrínseco
@@ -82,30 +54,12 @@ export const useWarrantCalculations = ({
         const priceChange = -duration * (simulatedRate - currentRate) / 100 * currentBondPrice;
 
         return {
-            currentBondPrice,
-            simulatedBondPrice,
-            currentWarrantValue,
-            simulatedWarrantValue,
-            intrinsicValue,
-            totalInvestment,
-            currentPosition,
-            simulatedPosition,
-            profitLoss,
-            profitLossPercent,
-            duration,
-            priceChange,
+            currentBondPrice, simulatedBondPrice, currentWarrantValue, simulatedWarrantValue,
+            intrinsicValue, totalInvestment, currentPosition, simulatedPosition,
+            profitLoss, profitLossPercent, duration, priceChange,
         };
     }, [
-        warrantType,
-        strike,
-        premium,
-        ratio,
-        expiry,
-        volatility,
-        quantity,
-        currentRate,
-        bondCoupon,
-        bondMaturity,
-        simulatedRate,
+        warrantType, strike, premium, ratio, expiry, volatility, quantity,
+        currentRate, bondCoupon, bondMaturity, simulatedRate, riskFreeRate, faceValue,
     ]);
 };
