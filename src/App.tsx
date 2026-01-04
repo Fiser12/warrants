@@ -14,13 +14,14 @@ import {
 import {
     Header,
     WarrantTypeSelector,
-    WarrantParamsCard,
+    WarrantPropsCard,
+    MarketPropsCard,
     BondParamsCard,
     ScenarioSimulator,
     BondMetrics,
     PnLResult,
     PayoffChart,
-    MarketParamsCard,
+
     TimeSimulatorCard,
     TimeDecayChart,
     CostsCard,
@@ -62,7 +63,10 @@ export default function App() {
 
     // Market params
     const [riskFreeRate, setRiskFreeRate] = useState(3.0);
-    const [simulatedRate, setSimulatedRate] = useState(4.0);
+    const [creditSpread, setCreditSpread] = useState(50); // bps
+
+    // Derived simulation value
+    const simulatedRate = riskFreeRate + (creditSpread / 100);
 
     // Time simulation
     const [elapsedDays, setElapsedDays] = useState(0);
@@ -80,7 +84,7 @@ export default function App() {
     const currentInput: SimulatorInput = useMemo(() => ({
         warrant: { type: warrantType, strike, premium, ratio, expiry, volatility, quantity },
         bond: { coupon: bondCoupon, maturity: bondMaturity, currentRate, faceValue },
-        market: { riskFreeRate, simulatedRate },
+        market: { riskFreeRate, simulatedRate }, // simulatedRate is now calculated above
         costs: { spreadPercent, commissionPercent, commissionFixed },
         time: { elapsedDays },
     }), [warrantType, strike, premium, ratio, expiry, volatility, quantity, bondCoupon, bondMaturity, currentRate, faceValue, riskFreeRate, simulatedRate, spreadPercent, commissionPercent, commissionFixed, elapsedDays]);
@@ -103,7 +107,13 @@ export default function App() {
         setCurrentRate(input.bond.currentRate);
         setFaceValue(input.bond.faceValue);
         setRiskFreeRate(input.market.riskFreeRate);
-        setSimulatedRate(input.market.simulatedRate);
+        // We need to infer credit spread if loading old operation or just set default
+        // Old operations might not have credit spread concept stored separately if we rely on simulatedRate difference
+        // For now, let's derive it or default it. 
+        // If simulatedRate is stored, we can try: CreditSpread = (Simulated - RiskFree) * 100
+        const derivedSpread = Math.max(0, Math.round((input.market.simulatedRate - input.market.riskFreeRate) * 100));
+        setCreditSpread(derivedSpread);
+
         setSpreadPercent(input.costs.spreadPercent);
         setCommissionPercent(input.costs.commissionPercent);
         setCommissionFixed(input.costs.commissionFixed);
@@ -126,7 +136,10 @@ export default function App() {
         setCurrentRate(input.bond.currentRate);
         setFaceValue(input.bond.faceValue);
         setRiskFreeRate(input.market.riskFreeRate);
-        setSimulatedRate(input.market.simulatedRate);
+
+        const derivedSpread = Math.max(0, Math.round((input.market.simulatedRate - input.market.riskFreeRate) * 100));
+        setCreditSpread(derivedSpread);
+
         setSpreadPercent(input.costs.spreadPercent);
         setCommissionPercent(input.costs.commissionPercent);
         setCommissionFixed(input.costs.commissionFixed);
@@ -250,23 +263,21 @@ export default function App() {
                             onImport={handleImport}
                         />
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                            {/* Panel de configuración */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                            {/* Columna 1: CONTRATO (Estático) */}
                             <div className="flex flex-col gap-4 sm:gap-5">
                                 <WarrantTypeSelector value={warrantType} onChange={setWarrantType} />
-                                <WarrantParamsCard
-                                    strike={strike} premium={premium} ratio={ratio} expiry={expiry} quantity={quantity}
-                                    volatility={volatility}
-                                    onStrikeChange={setStrike} onPremiumChange={setPremium} onRatioChange={setRatio}
-                                    onExpiryChange={setExpiry} onQuantityChange={setQuantity} onVolatilityChange={setVolatility}
-                                />
                                 <BondParamsCard
                                     currentRate={currentRate} bondCoupon={bondCoupon} bondMaturity={bondMaturity}
                                     faceValue={faceValue}
                                     onCurrentRateChange={setCurrentRate} onBondCouponChange={setBondCoupon}
                                     onBondMaturityChange={setBondMaturity} onFaceValueChange={setFaceValue}
                                 />
-                                <MarketParamsCard riskFreeRate={riskFreeRate} onRiskFreeRateChange={setRiskFreeRate} />
+                                <WarrantPropsCard
+                                    strike={strike} premium={premium} ratio={ratio} expiry={expiry} quantity={quantity}
+                                    onStrikeChange={setStrike} onPremiumChange={setPremium} onRatioChange={setRatio}
+                                    onExpiryChange={setExpiry} onQuantityChange={setQuantity}
+                                />
                                 <CostsCard
                                     spreadPercent={spreadPercent} commissionPercent={commissionPercent} commissionFixed={commissionFixed}
                                     onSpreadChange={setSpreadPercent} onCommissionPercentChange={setCommissionPercent}
@@ -274,10 +285,23 @@ export default function App() {
                                 />
                             </div>
 
-                            {/* Panel de resultados */}
+                            {/* Columna 2: MERCADO (Simulación) */}
                             <div className="flex flex-col gap-4 sm:gap-5">
-                                <ScenarioSimulator simulatedRate={simulatedRate} currentRate={currentRate} onChange={setSimulatedRate} />
+                                <ScenarioSimulator
+                                    simulatedRate={riskFreeRate}
+                                    currentRate={3.0} // Base reference or just hardcode? Or maybe current RiskFree which we don't fetch... for now show just rate.
+                                    onChange={setRiskFreeRate}
+                                    creditSpread={creditSpread} // Pass spread to show total yield context?
+                                />
+                                <MarketPropsCard
+                                    volatility={volatility} creditSpread={creditSpread} riskFreeRate={riskFreeRate}
+                                    onVolatilityChange={setVolatility} onCreditSpreadChange={setCreditSpread}
+                                />
                                 <TimeSimulatorCard expiryYears={expiry} elapsedDays={elapsedDays} theta={theta} onElapsedDaysChange={setElapsedDays} />
+                            </div>
+
+                            {/* Columna 3: RESULTADOS */}
+                            <div className="flex flex-col gap-4 sm:gap-5">
                                 <BondMetrics currentBondPrice={calculations.currentBondPrice} simulatedBondPrice={calculations.simulatedBondPrice} />
                                 <BreakEvenDisplay breakEvenRate={breakEvenRate} currentRate={currentRate} warrantType={warrantType} />
                                 <PnLResult

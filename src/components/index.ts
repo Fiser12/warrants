@@ -1,13 +1,13 @@
 export { Header } from './Header';
 export { SliderInput } from './SliderInput';
 export { WarrantTypeSelector } from './WarrantTypeSelector';
-export { WarrantParamsCard } from './WarrantParamsCard';
+export { WarrantPropsCard } from './WarrantPropsCard';
+export { MarketPropsCard } from './MarketPropsCard';
 export { BondParamsCard } from './BondParamsCard';
 export { ScenarioSimulator } from './ScenarioSimulator';
 export { BondMetrics } from './BondMetrics';
 export { PnLResult } from './PnLResult';
 export { PayoffChart } from './PayoffChart';
-export { MarketParamsCard } from './MarketParamsCard';
 export { TimeSimulatorCard } from './TimeSimulatorCard';
 export { TimeDecayChart } from './TimeDecayChart';
 export { CostsCard } from './CostsCard';

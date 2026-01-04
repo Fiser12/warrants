@@ -1,28 +1,41 @@
 import { SliderInput } from './SliderInput';
 
-interface WarrantParamsCardProps {
+interface WarrantPropsCardProps {
     strike: number;
     premium: number;
     ratio: number;
     expiry: number;
-    quantity: number;
-    volatility: number;
     onStrikeChange: (value: number) => void;
     onPremiumChange: (value: number) => void;
     onRatioChange: (value: number) => void;
     onExpiryChange: (value: number) => void;
+    quantity: number;
     onQuantityChange: (value: number) => void;
-    onVolatilityChange: (value: number) => void;
 }
 
-export const WarrantParamsCard = ({
-    strike, premium, ratio, expiry, quantity, volatility,
-    onStrikeChange, onPremiumChange, onRatioChange, onExpiryChange, onQuantityChange, onVolatilityChange,
-}: WarrantParamsCardProps) => {
+export const WarrantPropsCard = ({
+    strike, premium, ratio, expiry, quantity,
+    onStrikeChange, onPremiumChange, onRatioChange, onExpiryChange, onQuantityChange
+}: WarrantPropsCardProps) => {
     return (
         <div className="rounded-xl p-5 backdrop-blur-sm transition-all duration-300 bg-gradient-to-br from-slate-800/80 to-slate-900/90 border border-blue-500/15 hover:border-blue-500/30 hover:shadow-[0_8px_32px_rgba(59,130,246,0.1)]">
             <h3 className="m-0 mb-5 text-sm text-slate-400 tracking-wide">PARÁMETROS DEL WARRANT</h3>
             <div className="grid gap-5">
+                <SliderInput
+                    label="Cantidad de Warrants (Cartera)"
+                    value={quantity}
+                    min={100}
+                    max={10000}
+                    step={100}
+                    onChange={onQuantityChange}
+                    formatValue={(v) => v.toLocaleString()}
+                    colorClass="text-indigo-300"
+                    tooltip="Número de warrants que compras. Tu inversión total = cantidad × prima × ratio."
+                />
+
+                {/* Divider */}
+                <div className="h-px bg-slate-700/50 my-1" />
+
                 <SliderInput
                     label="Strike (Precio ejercicio)"
                     value={strike}
@@ -61,27 +74,6 @@ export const WarrantParamsCard = ({
                     onChange={onExpiryChange}
                     formatValue={(v) => `${v} año${v !== 1 ? 's' : ''}`}
                     tooltip="Tiempo hasta que expira el warrant. Más tiempo = más valor temporal, pero también más prima. El valor temporal decae aceleradamente cerca del vencimiento."
-                />
-                <SliderInput
-                    label="Cantidad de Warrants"
-                    value={quantity}
-                    min={100}
-                    max={10000}
-                    step={100}
-                    onChange={onQuantityChange}
-                    formatValue={(v) => v.toLocaleString()}
-                    tooltip="Número de warrants que compras. Tu inversión total = cantidad × prima × ratio."
-                />
-                <SliderInput
-                    label="Volatilidad implícita"
-                    value={volatility * 100}
-                    min={5}
-                    max={50}
-                    step={1}
-                    onChange={(v) => onVolatilityChange(v / 100)}
-                    formatValue={(v) => `${v.toFixed(0)}%`}
-                    colorClass="text-purple-400"
-                    tooltip="Expectativa del mercado sobre cuánto fluctuará el precio del bono. Mayor volatilidad = warrants más caros porque hay más probabilidad de grandes movimientos."
                 />
             </div>
         </div>

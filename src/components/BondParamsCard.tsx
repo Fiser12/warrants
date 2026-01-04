@@ -24,29 +24,27 @@ export const BondParamsCard = ({
         return localStorage.getItem('av_last_sync_date');
     });
 
+    // Default maturity 10year, country US
+    const [selectedBenchmark, setSelectedBenchmark] = useState<'3month' | '2year' | '5year' | '10year' | '30year'>('10year');
+    const [selectedCountry, setSelectedCountry] = useState<'us' | 'es' | 'de' | 'eu' | 'fr' | 'it' | 'nl'>('us');
+
     const handleSync = async () => {
-        if (!hasApiKey) {
-            alert('Por favor, configura tu API Key en los ajustes (⚙️) primero.');
+        // US requires API Key, others do not
+        if (selectedCountry === 'us' && !hasApiKey) {
+            alert('Para EEUU (Alpha Vantage) necesitas configurar tu API Key en los ajustes (⚙️). Europa/ECB es gratuito.');
             return;
         }
 
         setIsLoading(true);
-        const service = new MarketDataService(apiKey);
+        const service = new MarketDataService(selectedCountry === 'us' ? apiKey : 'skipped');
 
         try {
-            // Mapping rough maturity estimate to API params
-            let maturityParam: '2year' | '5year' | '10year' | '30year' = '10year';
-            if (bondMaturity <= 2) maturityParam = '2year';
-            else if (bondMaturity <= 5) maturityParam = '5year';
-            else if (bondMaturity <= 15) maturityParam = '10year';
-            else maturityParam = '30year';
-
-            const result = await service.fetchBondYield(maturityParam);
+            const result = await service.fetchBondYield(selectedBenchmark, selectedCountry);
 
             onCurrentRateChange(result.value);
 
             const dateStr = new Date().toLocaleString();
-            setLastUpdated(dateStr);
+            setLastUpdated(`${dateStr} (${selectedCountry.toUpperCase()})`);
             localStorage.setItem('av_last_sync_date', dateStr);
         } catch (error: any) {
             alert(`Error al sincronizar: ${error.message}`);
@@ -60,22 +58,64 @@ export const BondParamsCard = ({
             <div className="flex justify-between items-center mb-5">
                 <h3 className="m-0 text-sm text-slate-400 tracking-wide">BONO SUBYACENTE</h3>
                 <div className="flex items-center gap-2">
-                    {lastUpdated && (
-                        <span className="text-[10px] text-slate-500 hidden sm:inline">
-                            Updated: {lastUpdated}
-                        </span>
-                    )}
-                    <button
-                        onClick={handleSync}
-                        disabled={isLoading}
-                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded border transition-colors ${hasApiKey
+                    <div className="flex items-center gap-2">
+                        {lastUpdated && (
+                            <span className="text-[10px] text-slate-500 hidden xl:inline">
+                                {lastUpdated}
+                            </span>
+                        )}
+
+                        {/* Country Selector */}
+                        <select
+                            className="bg-slate-900 border border-slate-700 text-slate-300 text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500 max-w-[80px]"
+                            value={selectedCountry}
+                            onChange={(e) => setSelectedCountry(e.target.value as any)}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Seleccionar País/Zona"
+                        >
+                            <option value="us">🇺🇸 US</option>
+                            <option value="de">🇩🇪 DE</option>
+                            <option value="fr">🇫🇷 FR</option>
+                            <option value="it">🇮🇹 IT</option>
+                            <option value="es">🇪🇸 ES</option>
+                            <option value="nl">🇳🇱 NL</option>
+                            <option value="eu">🇪🇺 EU</option>
+                        </select>
+
+                        {/* Benchmark Selector */}
+                        <select
+                            className="bg-slate-900 border border-slate-700 text-slate-300 text-[10px] rounded px-2 py-1 outline-none focus:border-blue-500"
+                            value={selectedBenchmark}
+                            onChange={(e) => setSelectedBenchmark(e.target.value as any)}
+                            onClick={(e) => e.stopPropagation()}
+                            title={['us', 'de', 'eu'].includes(selectedCountry) ? "Seleccionar Vencimiento" : "Solo 10Y disponible (ECB)"}
+                            disabled={!['us', 'de', 'eu'].includes(selectedCountry)}
+                        >
+                            {['us', 'de', 'eu'].includes(selectedCountry) ? (
+                                <>
+                                    <option value="3month">3M</option>
+                                    <option value="2year">2Y</option>
+                                    <option value="5year">5Y</option>
+                                    <option value="10year">10Y</option>
+                                    <option value="30year">30Y</option>
+                                </>
+                            ) : (
+                                <option value="10year">10Y</option>
+                            )}
+                        </select>
+
+                        <button
+                            onClick={handleSync}
+                            disabled={isLoading}
+                            className={`text-[10px] uppercase font-bold px-2 py-1 rounded border transition-colors ${(selectedCountry !== 'us' || hasApiKey)
                                 ? 'bg-blue-900/30 border-blue-500/30 text-blue-400 hover:bg-blue-900/50 hover:text-blue-300 cursor-pointer'
                                 : 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed'
-                            }`}
-                        title={hasApiKey ? "Sincronizar Yield con Alpha Vantage" : "Requiere API Key (Configuración)"}
-                    >
-                        {isLoading ? 'Syncing...' : '↻ Sync'}
-                    </button>
+                                }`}
+                            title={selectedCountry === 'us' && !hasApiKey ? "Requiere API Key" : "Sincronizar ahora"}
+                        >
+                            {isLoading ? '...' : '↻'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
